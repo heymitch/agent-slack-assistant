@@ -111,6 +111,14 @@
       <label for="member">Your Slack member ID</label>
       <input type="text" id="member" placeholder="U01ABC2DEF3" autocomplete="off" />
       <p class="hint">Slack profile &rarr; More (&middot;&middot;&middot;) &rarr; Copy member ID. Locks the agent to just you.</p>
+
+      <label for="bot">Slack bot token</label>
+      <input type="text" id="bot" placeholder="xoxb-..." autocomplete="off" />
+      <p class="hint">Slack app &rarr; Install App &rarr; copy the Bot User OAuth Token.</p>
+
+      <label for="app">Slack app-level token</label>
+      <input type="text" id="app" placeholder="xapp-..." autocomplete="off" />
+      <p class="hint">Slack app &rarr; Basic Information &rarr; App-Level Tokens &rarr; generate one with scope connections:write.</p>
     </div>
 
     <!-- OUTPUTS -->
@@ -122,6 +130,17 @@
         <p class="sub">Generate it, then at <a href="https://api.slack.com/apps" target="_blank" rel="noopener">api.slack.com/apps</a> &rarr; Create New App &rarr; From an app manifest &rarr; paste &rarr; Create.</p>
         <textarea id="manifest" readonly spellcheck="false" hidden></textarea>
       </div>
+    </div>
+  </div>
+
+  <!-- CONNECT COMMAND (standalone) -->
+  <div class="card iconcard">
+    <div class="out">
+      <div class="row"><h3>Connect it to your agent</h3>
+        <span><button class="btn" data-copy="#connectcmd" id="copyC">Copy</button><span class="copied" id="c-connectcmd"></span></span></div>
+      <p class="sub">Paste this into your agent's terminal. It works the same on Mac, Linux, and Windows (PowerShell or cmd) because it is just the Hermes CLI.</p>
+      <code class="code" id="connectcmd">fill in your tokens and member ID above</code>
+      <p class="hint">This carries your tokens, so treat it like a password: paste it only into your own terminal, never share or post it.</p>
     </div>
   </div>
 
@@ -546,6 +565,7 @@
   const tpl = JSON.parse(document.getElementById('tpl').textContent);
   const $ = (s)=>document.querySelector(s);
   const yourI = $('#yourname'), agentI = $('#agentname'), brandI = $('#brand'), memberI = $('#member');
+  const botI = $('#bot'), appI = $('#app');
 
   function fullName(){
     const your = (yourI.value || '').trim();
@@ -567,15 +587,33 @@
     }
     return JSON.stringify(m, null, 2);
   }
+  // build the `hermes config set` connect command from member/bot/app.
+  // one line per non-empty field, always ending with a gateway restart.
+  // never logged or echoed anywhere except the visible command block.
+  function buildConnectCmd(){
+    const member = (memberI.value || '').trim();
+    const bot = (botI.value || '').trim();
+    const app = (appI.value || '').trim();
+    const lines = [];
+    if (bot) lines.push(`hermes config set SLACK_BOT_TOKEN ${bot}`);
+    if (app) lines.push(`hermes config set SLACK_APP_TOKEN ${app}`);
+    if (member) lines.push(`hermes config set SLACK_ALLOWED_USERS ${member}`);
+    if (!lines.length) return 'fill in your tokens and member ID above';
+    lines.push('hermes gateway restart');
+    return lines.join('\n');
+  }
   function render(){
     $('#nameprev').textContent = fullName();
     const ta = $('#manifest');
     if (!ta.hidden) ta.value = buildManifest(); // keep a revealed manifest fresh
+    $('#connectcmd').textContent = buildConnectCmd();
   }
   yourI.addEventListener('input', render);
   agentI.addEventListener('input', render);
   brandI.addEventListener('input', render);
   memberI.addEventListener('input', render);
+  botI.addEventListener('input', render);
+  appI.addEventListener('input', render);
   render();
 
   // generator: build + reveal the manifest on click (feels like it does something)
